@@ -46,8 +46,7 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   and real shots; the mid-session game patch with a real download; a real TetherKit
   bulk-IN stall (only stubs and a manual kill so far); a real Wine crash from a monitor
   power cycle under the current play.sh; Driving Range x3 and arming in a Studios round;
-  how Unity re-fits a game that is open during a display unplug; the Range's shot and
-  swing videos with Fix 11 (verified offline only, 11/01/2026). Done: play.sh end to
+  how Unity re-fits a game that is open during a display unplug. Done: play.sh end to
   end from the Dock, including Wine-crash recovery (10/26 and 10/28 notes).
 
 ## How it works
@@ -73,6 +72,12 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   root-owned copies (`60-install-usb-daemon.sh`: TetherKit, usb-link.sh, env.sh) update
   only when 60 is re-run; build-tetherkit.sh prints a `note:` when any of them differs,
   and update.sh repeats installer `note:` lines in the iTerm window.
+  **Halted pipe (11/04/2026):** on macOS a halted bulk IN pipe arrives as a plain transfer
+  error, so TetherKit's clear-halt case never ran. `patches/tetherkit-clear-halt.patch`
+  clears it and resubmits for up to 200 ms. A first version held a session for 4 min 40 s
+  through 242 halts; the 200 ms retry hasn't been tested with the monitor. The owner reports
+  the drops stop with iPhone Bluetooth off; not confirmed in the logs
+  (`notes/2026-11-04-range-video-confirmed-and-usb-halts.md`).
 - **Fix 1 — libzmq:** libzmq 4.3.5's `make_fdpair_tcpip` sends 1 MB over a blocking
   loopback socket before reading (zeromq #1608 workaround). Wine on macOS deadlocks.
   `scripts/30-build-libzmq.sh` cross-builds a patched DLL (mingw-w64 UCRT, CURVE via
@@ -200,7 +205,8 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
     `HKCU\Software\Wine\MediaFoundation\DisableGstByteStreamHandler=1`.
   Verified offline with a program that reads like Unity (async callback, its reader
   attributes, no DXGI manager, its stride/orientation logic): both real videos, all
-  frames, times from 0, right side up, for NV12/RGB32/ARGB32. Not yet seen in the Range.
+  frames, times from 0, right side up, for NV12/RGB32/ARGB32. Confirmed in the Range with
+  a real shot 11/04/2026: Shot and Impact videos play, no video errors in Player.log.
   Known: on the D3D path the new reader sometimes lost the last 3 frames (decoder drain
   race); never on the system-memory path.
 - **Fix 9 — display layout after a monitor change (10/28/2026):** win32u never
@@ -262,8 +268,10 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   `MdnsScanner`, `V3ScanTCP`, `DEALER`, `Connected to the device`, `APIAuthenticate`,
   `request-cert`.
 - USB link log: `~/Library/Logs/RapsodoGolf-usblink.log`.
-- Drive the UI without clicking: launch with `--remote-debugging-port=9222` and use the
-  Chrome DevTools Protocol; the renderer exposes
+- Drive the UI without clicking: launch with `--remote-debugging-port=9222` (a launcher
+  built from the current `launcher.c` adds it when `RGM_REMOTE_DEBUGGING_PORT=9222` is
+  set, as tier 3 of `scripts/test.sh` does; `tests/app/cdp.mjs` is a small client) and
+  use the Chrome DevTools Protocol; the renderer exposes
   `window.deviceManager.client.rdc.<Service>.<method>` (e.g.
   `DiscoveryAndConnectionService.scanTcpDevices(6)`).
 - Wine socket tracing: `WINEDEBUG=+winsock`. Thread backtraces:
@@ -276,5 +284,10 @@ Read first: `README.md`, then `notes/2026-10-19-rapsodo-golf-pc-app-on-mac.md`
   (auto-update). Push only changes that were tested; keep work in progress on a branch.
 - Never commit Rapsodo binaries, installers, or patched copies of them.
 - Keep `scripts/` idempotent; re-run them rather than hand-editing the prefix.
-- Lint shell with `shellcheck -x -e SC1091 scripts/*.sh` before committing.
+- Lint shell with `shellcheck -x -e SC1091 scripts/*.sh tests/*.sh` before committing.
+- Run `scripts/test.sh` (tiers 1–2, under a minute) before anything goes to main; tiers
+  3–4 (`scripts/test.sh 3 4`, app closed, monitor on, from iTerm) for changes to the
+  launch path, games or monitor link. `scripts/install-test-hook.sh` makes `git push` to
+  main run tiers 1–2 on the pushed commit (`RGM_SKIP_TESTS=1` to skip once).
+  `notes/2026-11-01-regression-tests.md`.
 - Add a dated `notes/YYYY-MM-DD-*.md` for any meaningful experiment, including failures.
